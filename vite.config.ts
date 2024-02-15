@@ -4,35 +4,44 @@ import Inspect from "vite-plugin-inspect";
 import fs from "fs";
 import path from "path";
 
-const buildPreviewMode = (): PluginOption => ({
-  name: "my-plugin",
-  async load(id) {
-    const isNodeModule = id.includes("node_modules");
+interface PreviewModeOptions {
+  previewExtension?: string;
+}
 
-    if (!isNodeModule) {
-      const fileName = id.substring(id.lastIndexOf("/") + 1, id.length);
-      const extension =
-        fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length) ||
-        fileName;
+const buildPreviewMode =
+  ({ previewExtension = "preview" }: PreviewModeOptions) =>
+  (): PluginOption => ({
+    name: "my-plugin",
+    async load(id) {
+      const isNodeModule = id.includes("node_modules");
 
-      const previewFile = id.replace(extension, `preview.${extension}`);
-      const previewExists = fs.existsSync(previewFile);
+      if (!isNodeModule) {
+        const fileName = id.substring(id.lastIndexOf("/") + 1, id.length);
+        const extension =
+          fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length) ||
+          fileName;
 
-      if (previewExists) {
-        console.log({
-          id,
-          isNodeModule,
-          fileName,
+        const previewFile = id.replace(
           extension,
-          previewFile,
-          previewExists,
-        });
-        return fs.readFileSync(previewFile, "utf-8");
+          `${previewExtension}.${extension}`
+        );
+        const previewExists = fs.existsSync(previewFile);
+
+        if (previewExists) {
+          console.log({
+            id,
+            isNodeModule,
+            fileName,
+            extension,
+            previewFile,
+            previewExists,
+          });
+          return fs.readFileSync(previewFile, "utf-8");
+        }
       }
-    }
-    return null;
-  },
-});
+      return null;
+    },
+  });
 
 export default ({ mode }: ConfigEnv) => {
   // https://vitejs.dev/config/
@@ -46,7 +55,7 @@ export default ({ mode }: ConfigEnv) => {
   ];
 
   if (mode.includes("preview")) {
-    plugins.push(buildPreviewMode());
+    plugins.push(buildPreviewMode({ previewExtension: "preview" })());
   }
 
   return defineConfig({
