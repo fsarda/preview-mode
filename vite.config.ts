@@ -6,33 +6,28 @@ import path from "path";
 
 const buildPreviewMode = (): PluginOption => ({
   name: "my-plugin",
-  enforce: "pre",
-  async resolveId(source, importer) {
-    if (!importer) return null;
+  async load(id) {
+    const isNodeModule = id.includes("node_modules");
 
-    const isNodeModule = importer.includes("node_modules");
-    const isTSXFile = source.includes(".tsx");
+    if (!isNodeModule) {
+      const fileName = id.substring(id.lastIndexOf("/") + 1, id.length);
+      const extension =
+        fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length) ||
+        fileName;
 
-    if (!isNodeModule && isTSXFile) {
-      // This path build probably needs to be fixed. Assuming
-      // imports are always relative but won't work if we have an alias
-      //Maybe some util functions to detect this
-      const previewFile = path.resolve(
-        `${__dirname}/src`,
-        source.replace(".tsx", ".preview.tsx")
-      );
+      const previewFile = id.replace(extension, `preview.${extension}`);
       const previewExists = fs.existsSync(previewFile);
 
       if (previewExists) {
         console.log({
-          importer,
-          source,
-          isTSXFile,
+          id,
+          isNodeModule,
+          fileName,
+          extension,
           previewFile,
           previewExists,
         });
-
-        return previewFile;
+        return fs.readFileSync(previewFile, "utf-8");
       }
     }
     return null;
@@ -59,5 +54,13 @@ export default ({ mode }: ConfigEnv) => {
       outDir: "dist",
     },
     plugins,
+    resolve: {
+      alias: [
+        {
+          find: "@views",
+          replacement: path.resolve(__dirname, "./src/views"),
+        },
+      ],
+    },
   });
 };
