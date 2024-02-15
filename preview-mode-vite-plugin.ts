@@ -1,4 +1,3 @@
-import fs from "fs";
 import { PluginOption } from "vite";
 
 interface PreviewModeOptions {
@@ -16,35 +15,43 @@ export const buildPreviewMode = ({
   mode,
 }: PreviewModeOptions): PluginOption => ({
   name: "my-plugin",
-  async load(id) {
-    const isNodeModule = id.includes("node_modules");
+  enforce: "pre",
+  async resolveId(source, importer, options) {
+    if (!importer) return null;
+
+    const isNodeModule = importer.includes("node_modules");
     const isPreviewMode = mode.includes("preview");
 
-    if (!isNodeModule && isPreviewMode) {
-      const fileName = id.substring(id.lastIndexOf("/") + 1, id.length);
-      const extension =
-        fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length) ||
-        fileName;
+    if (isNodeModule || !isPreviewMode || source.startsWith("react"))
+      return null;
+    //console.log({ source, importer, options });
 
-      const previewFile = id.replace(
-        extension,
-        `${previewExtension}.${extension}`
-      );
-      const previewExists = fs.existsSync(previewFile);
+    const fileName = source.substring(
+      source.lastIndexOf("/") + 1,
+      source.length
+    );
 
-      if (previewExists) {
-        console.log({
-          id,
-          isNodeModule,
-          fileName,
-          extension,
-          previewFile,
-          previewExists,
-        });
-        return fs.readFileSync(previewFile, "utf-8");
-      }
-    }
+    const extension =
+      fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length) ||
+      fileName;
 
-    return null;
+    const updatedId =
+      fileName === extension
+        ? `${source}.${previewExtension}`
+        : source.replace(extension, `${previewExtension}.${extension}`);
+
+    const updated = await this.resolve(
+      updatedId,
+      importer,
+      Object.assign({ skipSelf: true }, options)
+    );
+
+    if (!updated) return null;
+    const isUpdatedNodeModule = updated.id.includes("node_modules");
+
+    if (isUpdatedNodeModule) return null;
+
+    console.log({ source, updatedId, updated, options });
+    return updated.id;
   },
 });
