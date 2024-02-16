@@ -1,8 +1,29 @@
 import react from "@vitejs/plugin-react-swc";
-import path from "path";
 import { ConfigEnv, PluginOption, defineConfig } from "vite";
 import Inspect from "vite-plugin-inspect";
-import { buildPreviewMode } from "./preview-mode-vite-plugin";
+
+const getAlias = (mode: string) => {
+  console.log("getAlias", mode);
+  if (mode.includes("preview")) {
+    return [
+      {
+        find: /^(.*)\.real$/,
+        replacement: "$1.preview",
+      },
+    ];
+  }
+
+  return [];
+};
+
+const getOutDir = (mode: string) => {
+  console.log("getAlias", mode);
+  if (mode.includes("preview")) {
+    return "dist-preview";
+  }
+
+  return "dist";
+};
 
 export default ({ mode }: ConfigEnv) => {
   // https://vitejs.dev/config/
@@ -13,21 +34,15 @@ export default ({ mode }: ConfigEnv) => {
       outputDir: ".vite-inspect",
     }),
     react(),
-    buildPreviewMode({ mode, previewExtension: "preview" }),
   ];
 
   return defineConfig({
     build: {
-      outDir: "dist",
+      outDir: getOutDir(mode),
     },
     plugins,
     resolve: {
-      alias: [
-        {
-          find: "@views",
-          replacement: path.resolve(__dirname, "./src/views"),
-        },
-      ],
+      alias: getAlias(mode),
     },
   });
 };
